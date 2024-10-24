@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice {{ invoice.id }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        h1 { text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>Invoice {{ invoice.id }}</h1>
+    <p><strong>Client Name:</strong> {{ invoice.client_name }}</p>
+    <p><strong>Client Email:</strong> {{ invoice.client_email }}</p>
+    <p><strong>Date:</strong> {{ invoice.date }}</p>
+    <p><strong>Due Date:</strong> {{ invoice.due_date }}</p>
+    <p><strong>Amount:</strong> {{ invoice.amount }}</p>
+    <p><strong>Description:</strong></p>
+    <p>{{ invoice.description }}</p>
+</body>
+</html>
