@@ -55,9 +55,9 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
             <tr key={index}>
               <td className="border px-4 py-2">{item.description}</td>
               <td className="border px-4 py-2">{item.quantity}</td>
-              <td className="border px-4 py-2">{item.unit_price.toFixed(2)}</td>
+              <td className="border px-4 py-2">{parseFloat(item.unit_price.toString()).toFixed(2)}</td>
               <td className="border px-4 py-2">
-                {(item.quantity * item.unit_price).toFixed(2)}
+                {(item.quantity * parseFloat(item.unit_price.toString())).toFixed(2)}
               </td>
             </tr>
           ))}
@@ -66,19 +66,20 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
             <td colSpan={3} className="border px-4 py-2 font-bold text-right">
               Subtotal
             </td>
-            <td className="border px-4 py-2">{invoice.subtotal?.toFixed(2)}</td>
+            {/* Oplossing: Zet subtotal om naar een getal en behandel null/undefined als 0 */}
+            <td className="border px-4 py-2">{parseFloat(invoice.subtotal?.toString() || '0').toFixed(2)}</td>
           </tr>
           <tr>
             <td colSpan={3} className="border px-4 py-2 font-bold text-right">
               VAT ({invoice.vat_rate}%)
             </td>
-            <td className="border px-4 py-2">{invoice.vat_amount?.toFixed(2)}</td>
+            <td className="border px-4 py-2">{parseFloat(invoice.vat_amount?.toString() || '0').toFixed(2)}</td>
           </tr>
           <tr>
             <td colSpan={3} className="border px-4 py-2 font-bold text-right">
               Total
             </td>
-            <td className="border px-4 py-2">{invoice.total_amount?.toFixed(2)}</td>
+            <td className="border px-4 py-2">{parseFloat(invoice.total_amount?.toString() || '0').toFixed(2)}</td>
           </tr>
         </tbody>
       </table>
