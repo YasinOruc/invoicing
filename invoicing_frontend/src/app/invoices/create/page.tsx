@@ -37,7 +37,7 @@ export default function InvoiceCreatePage() {
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-4">Create Invoice</h1>
       <form onSubmit={handleSubmit}>
-        {/* Form fields */}
+        {/* Client Name */}
         <div className="mb-4">
           <label className="block text-gray-700">Client Name</label>
           <input
@@ -46,9 +46,10 @@ export default function InvoiceCreatePage() {
             value={invoice.client_name}
             onChange={handleChange}
             className="mt-1 p-2 border w-full"
+            required
           />
         </div>
-        {/* Repeat for other fields */}
+        {/* Client Email */}
         <div className="mb-4">
           <label className="block text-gray-700">Client Email</label>
           <input
@@ -57,9 +58,45 @@ export default function InvoiceCreatePage() {
             value={invoice.client_email}
             onChange={handleChange}
             className="mt-1 p-2 border w-full"
+            required
           />
         </div>
-        {/* ... */}
+        {/* Due Date */}
+        <div className="mb-4">
+          <label className="block text-gray-700">Due Date</label>
+          <input
+            type="date"
+            name="due_date"
+            value={invoice.due_date}
+            onChange={handleChange}
+            className="mt-1 p-2 border w-full"
+            required
+          />
+        </div>
+        {/* Amount */}
+        <div className="mb-4">
+          <label className="block text-gray-700">Amount</label>
+          <input
+            type="number"
+            step="0.01"
+            name="amount"
+            value={invoice.amount}
+            onChange={handleChange}
+            className="mt-1 p-2 border w-full"
+            required
+          />
+        </div>
+        {/* Description */}
+        <div className="mb-4">
+          <label className="block text-gray-700">Description</label>
+          <textarea
+            name="description"
+            value={invoice.description}
+            onChange={handleChange}
+            className="mt-1 p-2 border w-full"
+            required
+          ></textarea>
+        </div>
         <button type="submit" className="bg-blue-500 text-white px-4 py-2">
           Create
         </button>
