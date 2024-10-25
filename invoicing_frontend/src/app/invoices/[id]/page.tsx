@@ -2,22 +2,11 @@
 
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import api from '../../../api';
-
-interface Invoice {
-  id: number;
-  client_name: string;
-  client_email: string;
-  date: string;
-  due_date: string;
-  amount: string;
-  description: string;
-}
+import { Invoice } from '../../../types/invoice';
 
 export default function InvoiceDetailPage({ params }: { params: { id: string } }) {
-  const router = useRouter();
   const { id } = params;
   const [invoice, setInvoice] = useState<Invoice | null>(null);
 
@@ -32,13 +21,15 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">Invoice {invoice.id}</h1>
+      <h1 className="text-2xl font-bold mb-4">Invoice {invoice.invoice_number}</h1>
+      {/* Client Information */}
       <p>
         <strong>Client Name:</strong> {invoice.client_name}
       </p>
       <p>
         <strong>Client Email:</strong> {invoice.client_email}
       </p>
+      {/* Invoice Information */}
       <p>
         <strong>Date:</strong> {invoice.date}
       </p>
@@ -46,14 +37,54 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
         <strong>Due Date:</strong> {invoice.due_date}
       </p>
       <p>
-        <strong>Amount:</strong> {invoice.amount}
+        <strong>VAT Rate:</strong> {invoice.vat_rate}%
       </p>
-      <p>
-        <strong>Description:</strong> {invoice.description}
-      </p>
+      {/* Items */}
+      <h2 className="text-xl font-bold mt-8 mb-4">Items</h2>
+      <table className="min-w-full border">
+        <thead>
+          <tr>
+            <th className="border px-4 py-2">Description</th>
+            <th className="border px-4 py-2">Quantity</th>
+            <th className="border px-4 py-2">Unit Price (€)</th>
+            <th className="border px-4 py-2">Total Price (€)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {invoice.items.map((item, index) => (
+            <tr key={index}>
+              <td className="border px-4 py-2">{item.description}</td>
+              <td className="border px-4 py-2">{item.quantity}</td>
+              <td className="border px-4 py-2">{item.unit_price.toFixed(2)}</td>
+              <td className="border px-4 py-2">
+                {(item.quantity * item.unit_price).toFixed(2)}
+              </td>
+            </tr>
+          ))}
+          {/* Summary */}
+          <tr>
+            <td colSpan={3} className="border px-4 py-2 font-bold text-right">
+              Subtotal
+            </td>
+            <td className="border px-4 py-2">{invoice.subtotal?.toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td colSpan={3} className="border px-4 py-2 font-bold text-right">
+              VAT ({invoice.vat_rate}%)
+            </td>
+            <td className="border px-4 py-2">{invoice.vat_amount?.toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td colSpan={3} className="border px-4 py-2 font-bold text-right">
+              Total
+            </td>
+            <td className="border px-4 py-2">{invoice.total_amount?.toFixed(2)}</td>
+          </tr>
+        </tbody>
+      </table>
       <a
-        href={`http://localhost:8000/api/invoices/${invoice.id}/pdf/`}
-        className="text-blue-500"
+        href={`http://localhost:8000/api/invoices/${invoice.invoice_number}/pdf/`}
+        className="text-blue-500 mt-4 inline-block"
       >
         Download PDF
       </a>
