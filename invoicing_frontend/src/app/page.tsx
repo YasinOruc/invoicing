@@ -224,9 +224,6 @@ export default function InvoiceDashboard() {
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
             <DialogDescription>
-              Are you sureHere’s the continuation and completion of the code with the delete confirmation functionality:
-
-```typescript
               Are you sure you want to delete invoice {invoiceToDelete?.invoice_number}? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
