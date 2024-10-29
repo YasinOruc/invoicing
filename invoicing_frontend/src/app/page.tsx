@@ -236,19 +236,6 @@ export default function InvoiceDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-8">
-        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between text-sm text-gray-500">
-            <div>© 2024 Invoice Manager</div>
-            <div>
-              <a href="#" className="hover:text-gray-700">Privacy Policy</a>
-              <span className="mx-2">|</span>
-              <a href="#" className="hover:text-gray-700">Contact Support</a>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
