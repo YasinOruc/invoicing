@@ -27,8 +27,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
-import { useToast } from '@/hooks/use-toast'; // Correcte import voor useToast
-import { Toaster } from '@/components/ui/toaster'; // Correcte import voor Toaster
+import { useToast } from '@/hooks/use-toast'; 
+import { Toaster } from '@/components/ui/toaster';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import api from '@/api';
@@ -166,7 +166,6 @@ const Summary: React.FC<SummaryProps> = ({ subtotal, vat, total }) => {
   );
 };
 
-// Nieuwe interfaces voor payload
 interface InvoiceItemPayload {
   description: string;
   quantity: number;
