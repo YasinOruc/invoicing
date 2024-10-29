@@ -108,7 +108,7 @@ export default function EditInvoiceComponent({ params }: { params: { id: string 
         title: 'Invoice Updated',
         description: `Invoice for ${clientName} has been updated successfully.`,
       });
-      router.push('/invoices');
+      router.push('/');
     } catch (error) {
       console.error('Error saving invoice:', error);
       toast({
@@ -125,7 +125,7 @@ export default function EditInvoiceComponent({ params }: { params: { id: string 
       <div className="max-w-5xl mx-auto">
         <Button
           variant="ghost"
-          onClick={() => router.push('/invoices')}
+          onClick={() => router.push('/')}
           className="mb-6 text-gray-600 hover:text-gray-900"
         >
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Invoices
