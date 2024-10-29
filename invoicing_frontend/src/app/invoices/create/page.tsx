@@ -1,5 +1,3 @@
-// src/app/invoices/create/page.tsx
-
 'use client';
 
 import React, { useState, useCallback, useMemo } from 'react';
@@ -29,11 +27,12 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
-// import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast'; // Correcte import voor useToast
+import { Toaster } from '@/components/ui/toaster'; // Correcte import voor Toaster
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import api from '../../../api';
-import { Invoice, InvoiceItem } from '../../../types/invoice';
+import api from '@/api';
+import { Invoice, InvoiceItem } from '@/types/invoice';
 
 interface InvoiceItemComponentProps {
   item: InvoiceItem;
@@ -78,10 +77,15 @@ const InvoiceItemComponent: React.FC<InvoiceItemComponentProps> = React.memo(
                 id={`quantity-${item.id}`}
                 type="number"
                 value={item.quantity}
-                onChange={(e) =>
-                  onUpdate(item.id, 'quantity', Number(e.target.value))
-                }
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  if (!isNaN(value) && value >= 0) {
+                    onUpdate(item.id, 'quantity', value);
+                  }
+                }}
                 className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                step="1"
+                min="0"
               />
             </div>
             <div className="space-y-2 md:col-span-3">
@@ -95,10 +99,15 @@ const InvoiceItemComponent: React.FC<InvoiceItemComponentProps> = React.memo(
                 id={`unit_price-${item.id}`}
                 type="number"
                 value={item.unit_price}
-                onChange={(e) =>
-                  onUpdate(item.id, 'unit_price', Number(e.target.value))
-                }
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
+                  if (!isNaN(value) && value >= 0) {
+                    onUpdate(item.id, 'unit_price', value);
+                  }
+                }}
                 className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                step="0.01"
+                min="0"
               />
             </div>
             <div className="md:col-span-1">
@@ -157,8 +166,25 @@ const Summary: React.FC<SummaryProps> = ({ subtotal, vat, total }) => {
   );
 };
 
+// Nieuwe interfaces voor payload
+interface InvoiceItemPayload {
+  description: string;
+  quantity: number;
+  unit_price: number;
+  total_price?: number;
+}
+
+interface InvoicePayload {
+  client_name: string;
+  client_email: string;
+  due_date: string;
+  vat_rate: number;
+  items: InvoiceItemPayload[];
+}
+
 export default function InvoiceCreatePage() {
   const router = useRouter();
+  const { toast } = useToast();
 
   const [invoice, setInvoice] = useState<Invoice>({
     client_name: '',
@@ -168,7 +194,7 @@ export default function InvoiceCreatePage() {
     items: [{ id: 1, description: '', quantity: 1, unit_price: 0 }],
   });
 
-  const addItem = useCallback(() => {
+  const addItem = useCallback((): void => {
     const newItem: InvoiceItem = {
       id:
         invoice.items.length > 0
@@ -185,12 +211,12 @@ export default function InvoiceCreatePage() {
   }, [invoice.items]);
 
   const removeItem = useCallback(
-    (id: number) => {
-      if (invoice.items.length === 1) {
+    (id: number): void => {
+      if (invoice.items.length <= 1) {
         toast({
           title: 'Cannot remove the last item',
           description: 'An invoice must have at least one item.',
-          status: 'warning',
+          variant: 'destructive',
         });
         return;
       }
@@ -199,11 +225,11 @@ export default function InvoiceCreatePage() {
         items: prevInvoice.items.filter((item) => item.id !== id),
       }));
     },
-    [invoice.items]
+    [invoice.items, toast]
   );
 
   const updateItem = useCallback(
-    (id: number, field: keyof InvoiceItem, value: string | number) => {
+    (id: number, field: keyof InvoiceItem, value: string | number): void => {
       setInvoice((prevInvoice) => ({
         ...prevInvoice,
         items: prevInvoice.items.map((item) =>
@@ -214,25 +240,30 @@ export default function InvoiceCreatePage() {
     []
   );
 
-  const subtotal = useMemo(() => {
-    return invoice.items.reduce(
-      (sum, item) => sum + item.quantity * item.unit_price,
-      0
-    );
+  const subtotal = useMemo<number>(() => {
+    return invoice.items.reduce((sum, item) => {
+      const quantity = item.quantity || 0;
+      const unit_price = item.unit_price || 0;
+      return sum + quantity * unit_price;
+    }, 0);
   }, [invoice.items]);
 
-  const vat = useMemo(() => {
-    return (subtotal * invoice.vat_rate) / 100;
+  const vat = useMemo<number>(() => {
+    const vatRate = invoice.vat_rate || 0;
+    return (subtotal * vatRate) / 100;
   }, [subtotal, invoice.vat_rate]);
 
-  const total = useMemo(() => {
+  const total = useMemo<number>(() => {
     return subtotal + vat;
   }, [subtotal, vat]);
 
-  const handleSubmit = async (action: string) => {
+  const handleSubmit = async (action: string): Promise<void> => {
     try {
-      const formattedInvoice = {
-        ...invoice,
+      const formattedInvoice: InvoicePayload = {
+        client_name: invoice.client_name,
+        client_email: invoice.client_email,
+        due_date: invoice.due_date,
+        vat_rate: invoice.vat_rate,
         items: invoice.items.map(({ id, ...item }) => ({
           ...item,
           quantity: Number(item.quantity),
@@ -241,7 +272,11 @@ export default function InvoiceCreatePage() {
       };
 
       const response = await api.post('invoices/', formattedInvoice);
-      const savedInvoice = response.data;
+      const savedInvoice: Invoice = response.data;
+
+      if (!savedInvoice.invoice_number) {
+        throw new Error('Invoice number is missing in the response.');
+      }
 
       if (action === 'save') {
         toast({
@@ -263,13 +298,10 @@ export default function InvoiceCreatePage() {
 
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute(
-          'download',
-          `invoice_${savedInvoice.invoice_number}.pdf`
-        );
+        link.setAttribute('download', `invoice_${savedInvoice.invoice_number}.pdf`);
         document.body.appendChild(link);
         link.click();
-        link.parentNode?.removeChild(link);
+        document.body.removeChild(link);
 
         toast({
           title: 'Invoice Saved and Downloaded',
@@ -288,17 +320,18 @@ export default function InvoiceCreatePage() {
       toast({
         title: 'Error',
         description: 'An error occurred while saving the invoice.',
-        status: 'error',
+        variant: 'destructive',
       });
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = (): void => {
     router.push('/');
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Toaster /> {/* Renders all toasts */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
@@ -413,14 +446,19 @@ export default function InvoiceCreatePage() {
                     id="vat_rate"
                     type="number"
                     value={invoice.vat_rate}
-                    onChange={(e) =>
-                      setInvoice({
-                        ...invoice,
-                        vat_rate: Number(e.target.value),
-                      })
-                    }
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      if (!isNaN(value) && value >= 0) {
+                        setInvoice({
+                          ...invoice,
+                          vat_rate: value,
+                        });
+                      }
+                    }}
                     className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-full"
                     required
+                    step="0.01"
+                    min="0"
                   />
                 </div>
               </div>
