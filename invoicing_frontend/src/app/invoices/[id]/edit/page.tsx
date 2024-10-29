@@ -1,234 +1,252 @@
-// src/app/invoices/[id]/edit/page.tsx
-
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, FormEvent } from 'react';
-import api from '../../../../api';
-import { Invoice, InvoiceItem } from '../../../../types/invoice';
+import { motion } from 'framer-motion';
+import { ArrowLeft, User, Mail, Calendar, Percent, Trash2, Plus, Save } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import { Toaster } from "@/components/ui/toaster";
+import api from '@/api';
+import { Invoice, InvoiceItem } from '@/types/invoice';
 
-export default function InvoiceEditPage({ params }: { params: { id: string } }) {
+interface InvoiceItemPayload {
+  description: string;
+  quantity: number;
+  unit_price: number;
+  total_price?: number;
+}
+
+interface InvoicePayload {
+  client_name: string;
+  client_email: string;
+  due_date: string;
+  vat_rate: number;
+  items: InvoiceItemPayload[];
+}
+
+export default function EditInvoiceComponent({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const { id } = params;
-  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const { toast } = useToast();
+  const [clientName, setClientName] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [vatRate, setVatRate] = useState(21);
+  const [items, setItems] = useState<InvoiceItem[]>([]);
 
   useEffect(() => {
-    api
-      .get(`invoices/${id}/`)
-      .then((response) => setInvoice(response.data))
-      .catch((error) => console.error(error));
-  }, [id]);
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    if (invoice) {
-      api
-        .put(`invoices/${id}/`, invoice)
-        .then(() => {
-          alert('Invoice updated successfully');
-          router.push('/');
-        })
-        .catch((error) => console.error(error));
+    async function fetchInvoice() {
+      try {
+        const response = await api.get<Invoice>(`/invoices/${params.id}/`);
+        const { client_name, client_email, due_date, vat_rate, items } = response.data;
+        setClientName(client_name);
+        setClientEmail(client_email);
+        setDueDate(due_date);
+        setVatRate(vat_rate);
+        setItems(items);
+      } catch (error) {
+        console.error('Error fetching invoice:', error);
+      }
     }
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    setInvoice({ ...invoice!, [e.target.name]: e.target.value });
-  };
-
-  const handleItemChange = (
-    index: number,
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    if (!invoice) return;
-  
-    const fieldName = e.target.name;
-    const value = e.target.value;
-    const newItems = [...invoice.items];
-    const item = newItems[index];
-  
-    switch (fieldName) {
-      case 'description':
-        item.description = value;
-        break;
-      case 'quantity':
-        item.quantity = parseFloat(value);
-        break;
-      case 'unit_price':
-        item.unit_price = parseFloat(value);
-        break;
-      default:
-        console.warn(`Unknown field: ${fieldName}`);
-        break;
-    }
-  
-    setInvoice({ ...invoice, items: newItems });
-  };
-  
+    fetchInvoice();
+  }, [params.id]);
 
   const addItem = () => {
-    setInvoice({
-      ...invoice!,
-      items: [
-        ...invoice!.items,
-        { description: '', quantity: 1, unit_price: 0 },
-      ],
-    });
+    setItems([...items, { id: Date.now(), description: '', quantity: 1, unit_price: 0 }]);
   };
 
-  const removeItem = (index: number) => {
-    const newItems = invoice!.items.filter((_, i) => i !== index);
-    setInvoice({ ...invoice!, items: newItems });
+  const removeItem = (id: number) => {
+    if (items.length <= 1) {
+      toast({
+        title: 'Cannot remove the last item',
+        description: 'An invoice must have at least one item.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setItems(items.filter((item) => item.id !== id));
   };
 
-  const calculateSubtotal = () => {
-    return invoice!.items.reduce(
-      (total, item) => total + item.quantity * item.unit_price,
-      0
+  const updateItem = (id: number, field: keyof InvoiceItem, value: string | number) => {
+    setItems(
+      items.map((item) => (item.id === id ? { ...item, [field]: value } : item))
     );
   };
 
-  const calculateVAT = () => {
-    return (calculateSubtotal() * (invoice!.vat_rate || 0)) / 100;
+  const calculateSubtotal = () => {
+    return items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+  };
+
+  const calculateVat = () => {
+    return calculateSubtotal() * (vatRate / 100);
   };
 
   const calculateTotal = () => {
-    return calculateSubtotal() + calculateVAT();
+    return calculateSubtotal() + calculateVat();
   };
 
-  if (!invoice) return <div>Loading...</div>;
+  const handleSave = async () => {
+    try {
+      const payload: InvoicePayload = {
+        client_name: clientName,
+        client_email: clientEmail,
+        due_date: dueDate,
+        vat_rate: vatRate,
+        items: items.map((item) => ({
+          description: item.description,
+          quantity: Number(item.quantity),
+          unit_price: Number(item.unit_price),
+        })),
+      };
+
+      await api.put(`/invoices/${params.id}/`, payload);
+      toast({
+        title: 'Invoice Updated',
+        description: `Invoice for ${clientName} has been updated successfully.`,
+      });
+      router.push('/invoices');
+    } catch (error) {
+      console.error('Error saving invoice:', error);
+      toast({
+        title: 'Error',
+        description: 'There was an error updating the invoice.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">Edit Invoice {invoice.invoice_number}</h1>
-      <form onSubmit={handleSubmit}>
-        {/* Client Information */}
-        <div className="mb-4">
-          <label className="block text-gray-700">Client Name</label>
-          <input
-            type="text"
-            name="client_name"
-            value={invoice.client_name}
-            onChange={handleChange}
-            className="mt-1 p-2 border w-full"
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-gray-700">Client Email</label>
-          <input
-            type="email"
-            name="client_email"
-            value={invoice.client_email}
-            onChange={handleChange}
-            className="mt-1 p-2 border w-full"
-            required
-          />
-        </div>
-        {/* Invoice Information */}
-        <div className="mb-4">
-          <label className="block text-gray-700">Due Date</label>
-          <input
-            type="date"
-            name="due_date"
-            value={invoice.due_date}
-            onChange={handleChange}
-            className="mt-1 p-2 border w-full"
-            required
-          />
-        </div>
-        {/* VAT Rate */}
-        <div className="mb-4">
-          <label className="block text-gray-700">VAT Rate (%)</label>
-          <input
-            type="number"
-            name="vat_rate"
-            value={invoice.vat_rate}
-            onChange={handleChange}
-            className="mt-1 p-2 border w-full"
-            required
-            step="0.01"
-          />
-        </div>
-        {/* Items */}
-        <h2 className="text-xl font-bold mt-8 mb-4">Items</h2>
-        {invoice.items.map((item, index) => (
-          <div key={index} className="mb-4 border p-4">
-            <div className="flex justify-between">
-              <h3 className="font-bold">Item {index + 1}</h3>
-              <button
-                type="button"
-                onClick={() => removeItem(index)}
-                className="text-red-500"
-                disabled={invoice.items.length === 1}
-              >
-                Remove
-              </button>
-            </div>
-            <div className="mb-2">
-              <label className="block text-gray-700">Description</label>
-              <textarea
-                name="description"
-                value={item.description}
-                onChange={(e) => handleItemChange(index, e)}
-                className="mt-1 p-2 border w-full"
-                required
-              ></textarea>
-            </div>
-            <div className="mb-2">
-              <label className="block text-gray-700">Quantity</label>
-              <input
-                type="number"
-                name="quantity"
-                value={item.quantity}
-                onChange={(e) => handleItemChange(index, e)}
-                className="mt-1 p-2 border w-full"
-                required
-                min="1"
-              />
-            </div>
-            <div className="mb-2">
-              <label className="block text-gray-700">Unit Price (€)</label>
-              <input
-                type="number"
-                name="unit_price"
-                value={item.unit_price}
-                onChange={(e) => handleItemChange(index, e)}
-                className="mt-1 p-2 border w-full"
-                required
-                step="0.01"
-              />
-            </div>
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={addItem}
-          className="bg-green-500 text-white px-4 py-2"
+    <div className="min-h-screen bg-gray-50 p-8">
+      <Toaster />
+      <div className="max-w-5xl mx-auto">
+        <Button
+          variant="ghost"
+          onClick={() => router.push('/invoices')}
+          className="mb-6 text-gray-600 hover:text-gray-900"
         >
-          Add Item
-        </button>
-        {/* Summary */}
-        <div className="mt-8">
-          <h2 className="text-xl font-bold mb-4">Summary</h2>
-          <p>
-            <strong>Subtotal:</strong> €{calculateSubtotal().toFixed(2)}
-          </p>
-          <p>
-            <strong>VAT ({invoice.vat_rate}%):</strong> €
-            {calculateVAT().toFixed(2)}
-          </p>
-          <p>
-            <strong>Total:</strong> €{calculateTotal().toFixed(2)}
-          </p>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Invoices
+        </Button>
+
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Edit Invoice</h1>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="md:col-span-2 space-y-8">
+            <Card className="bg-white shadow-sm">
+              <CardHeader>
+                <CardTitle>Client Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="clientName" className="text-sm font-medium text-gray-700">
+                    Client Name
+                  </Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <Input
+                      id="clientName"
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="clientEmail" className="text-sm font-medium text-gray-700">
+                    Client Email
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <Input
+                      id="clientEmail"
+                      type="email"
+                      value={clientEmail}
+                      onChange={(e) => setClientEmail(e.target.value)}
+                      className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white shadow-sm">
+              <CardHeader>
+                <CardTitle>Invoice Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dueDate" className="text-sm font-medium text-gray-700">
+                    Due Date
+                  </Label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <Input
+                      id="dueDate"
+                      type="date"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="vatRate" className="text-sm font-medium text-gray-700">
+                    VAT Rate (%)
+                  </Label>
+                  <div className="relative">
+                    <Percent className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <Input
+                      id="vatRate"
+                      type="number"
+                      value={vatRate}
+                      onChange={(e) => setVatRate(Number(e.target.value))}
+                      className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="md:col-span-1">
+            <Card className="bg-white shadow-sm sticky top-8">
+              <CardHeader>
+                <CardTitle>Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Subtotal:</span>
+                  <span className="font-medium">€{calculateSubtotal().toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">VAT ({vatRate}%):</span>
+                  <span className="font-medium">€{calculateVat().toFixed(2)}</span>
+                </div>
+                <Separator />
+                <motion.div
+                  className="flex justify-between items-center"
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <span className="text-lg font-semibold">Total:</span>
+                  <span className="text-lg font-bold">€{calculateTotal().toFixed(2)}</span>
+                </motion.div>
+              </CardContent>
+              <CardFooter>
+                <Button
+                  onClick={handleSave}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Save className="mr-2 h-4 w-4" /> Save Changes
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
         </div>
-        {/* Submit */}
-        <button type="submit" className="bg-blue-500 text-white px-4 py-2 mt-4">
-          Save
-        </button>
-      </form>
+      </div>
     </div>
   );
 }
